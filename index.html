@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AESO Pool Price Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="config.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-bolt"></i> AESO Pool Price Dashboard</h1>
+            <p>Alberta Electric System Operator - Pool Price Data</p>
+        </header>
+
+        <div class="smp-current-section">
+            <div class="smp-header">
+                <h2><i class="fas fa-chart-area"></i> Current System Marginal Price</h2>
+                <button id="refreshSmpBtn" class="btn btn-secondary">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+            <div class="smp-content">
+                <div class="smp-current">
+                    <div class="smp-price">
+                        <span class="smp-label">Current SMP</span>
+                        <span id="currentSmpPrice" class="smp-value">--</span>
+                    </div>
+                    <div class="smp-details">
+                        <div class="smp-detail">
+                            <span class="detail-label">Date/Time (MPT):</span>
+                            <span id="currentSmpDateTime" class="detail-value">--</span>
+                        </div>
+                        <div class="smp-detail">
+                            <span class="detail-label">Volume (MW):</span>
+                            <span id="currentSmpVolume" class="detail-value">--</span>
+                        </div>
+                        <div class="smp-detail">
+                            <span class="detail-label">Price ($/MWh):</span>
+                            <span id="currentSmpPriceMWh" class="detail-value">--</span>
+                        </div>
+                        <div class="smp-detail">
+                            <span class="detail-label">Last Updated:</span>
+                            <span id="smpLastUpdated" class="detail-value">--</span>
+                        </div>
+                        <div class="smp-detail">
+                            <span class="detail-label">Auto-refresh:</span>
+                            <span id="autoRefreshStatus" class="detail-value">Every 15 min</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="smp-previous">
+                    <h3>Previous Values</h3>
+                    <div id="previousSmpData" class="previous-data">
+                        <p class="no-data">No previous data available</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="date-range-group">
+                <div class="date-input-group">
+                    <label for="startDate">Start Date:</label>
+                    <input type="date" id="startDate" required>
+                </div>
+                <div class="date-input-group">
+                    <label for="endDate">End Date (Optional):</label>
+                    <input type="date" id="endDate">
+                </div>
+                <button id="fetchBtn" class="btn btn-primary">
+                    <i class="fas fa-download"></i> Fetch Pool Price Data
+                </button>
+            </div>
+            
+            <div class="status-info">
+                <span id="statusText">Ready to fetch pool price data</span>
+                <span id="itemCount" class="item-count"></span>
+                <div class="loading" id="loading" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i> Loading...
+                </div>
+            </div>
+            
+            <div class="filter-group">
+                <select id="sortSelect" class="sort-select">
+                    <option value="">Sort by...</option>
+                    <option value="begin_datetime_utc">Date/Time (UTC)</option>
+                    <option value="begin_datetime_mpt">Date/Time (MPT)</option>
+                    <option value="pool_price">Pool Price</option>
+                    <option value="forecast_pool_price">Forecast Price</option>
+                    <option value="rolling_30day_avg">30-Day Average</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-header">
+                <h3><i class="fas fa-chart-line"></i> Pool Price Trends</h3>
+                <p>Visualization of Pool Price, Forecast Price, and 30-Day Average over time</p>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="priceChart"></canvas>
+            </div>
+        </div>
+
+
+        <div class="data-container">
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+            <div id="dataGrid" class="data-grid"></div>
+        </div>
+
+        <div class="pagination" id="pagination" style="display: none;">
+            <button id="prevBtn" class="btn btn-secondary">
+                <i class="fas fa-chevron-left"></i> Previous
+            </button>
+            <span id="pageInfo" class="page-info"></span>
+            <button id="nextBtn" class="btn btn-secondary">
+                Next <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

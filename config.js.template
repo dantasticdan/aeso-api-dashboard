@@ -1,0 +1,9 @@
+// AESO API Configuration Template
+// Copy this file to config.js and add your actual API key
+
+window.AESO_API_KEY = 'YOUR_API_KEY_HERE';
+
+// Instructions:
+// 1. Copy this file: cp config.js.template config.js
+// 2. Replace 'YOUR_API_KEY_HERE' with your actual AESO API key
+// 3. The config.js file is ignored by git for security
