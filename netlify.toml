@@ -1,0 +1,11 @@
+[build]
+  publish = "."
+
+[build.environment]
+  AESO_API_KEY = "fddc2df776174e96bdb06e06cdaa3052"
+
+# Optional: Add redirects for SPA routing if needed
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
