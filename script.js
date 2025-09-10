@@ -201,7 +201,7 @@ class PoolPriceDashboard {
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
-                    'API-KEY': this.getApiKey()
+                    'API-KEY': await this.getApiKey()
                 }
             });
 
@@ -496,7 +496,7 @@ class PoolPriceDashboard {
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
-                    'API-KEY': this.getApiKey()
+                    'API-KEY': await this.getApiKey()
                 }
             });
 
@@ -585,7 +585,7 @@ class PoolPriceDashboard {
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
-                    'API-KEY': this.getApiKey()
+                    'API-KEY': await this.getApiKey()
                 }
             });
 
@@ -686,10 +686,21 @@ class PoolPriceDashboard {
         }
     }
 
-    getApiKey() {
-        // Check for API key in environment or configuration
-        // For production, set this via environment variable or config file
-        return window.AESO_API_KEY || 'YOUR_API_KEY_HERE';
+    async getApiKey() {
+        // First try local config (for development)
+        if (window.AESO_API_KEY && window.AESO_API_KEY !== 'YOUR_API_KEY_HERE') {
+            return window.AESO_API_KEY;
+        }
+        
+        // For production, fetch from Netlify function
+        try {
+            const response = await fetch('/.netlify/functions/get-config');
+            const config = await response.json();
+            return config.apiKey;
+        } catch (error) {
+            console.warn('Could not fetch API key from Netlify function:', error);
+            return 'YOUR_API_KEY_HERE';
+        }
     }
 }
 

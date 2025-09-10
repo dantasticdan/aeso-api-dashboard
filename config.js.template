@@ -7,3 +7,4 @@ window.AESO_API_KEY = 'YOUR_API_KEY_HERE';
 // 1. Copy this file: cp config.js.template config.js
 // 2. Replace 'YOUR_API_KEY_HERE' with your actual AESO API key
 // 3. The config.js file is ignored by git for security
+// 4. For Netlify deployment, the API key is set via environment variables in Netlify dashboard
