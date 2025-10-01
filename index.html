@@ -62,6 +62,51 @@
             </div>
         </div>
 
+        <!-- Kasa Smart Switch Control Section -->
+        <div class="kasa-control-section">
+            <div class="kasa-header">
+                <h2><i class="fas fa-power-off"></i> Smart Switch Control</h2>
+                <div class="switch-status" id="switchStatus">
+                    <span class="status-indicator" id="statusIndicator">●</span>
+                    <span id="switchStatusText">Checking...</span>
+                </div>
+            </div>
+            <div class="kasa-content">
+                <div class="switch-controls">
+                    <button id="toggleSwitchBtn" class="btn btn-primary" disabled>
+                        <i class="fas fa-power-off"></i> Toggle Switch
+                    </button>
+                    <button id="runAutomationBtn" class="btn btn-secondary">
+                        <i class="fas fa-robot"></i> Run Automation
+                    </button>
+                </div>
+                <div class="automation-settings">
+                    <h3>Automation Settings</h3>
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="automationEnabled"> Enable Automation
+                        </label>
+                    </div>
+                    <div class="threshold-settings">
+                        <div class="threshold-input">
+                            <label for="priceThreshold">Price Threshold (¢/kWh):</label>
+                            <input type="number" id="priceThreshold" value="5.0" step="0.1" min="0" max="50">
+                            <small>Turn ON when price is below this threshold</small>
+                        </div>
+                        <button id="updateThresholdBtn" class="btn btn-small">
+                            <i class="fas fa-save"></i> Update Threshold
+                        </button>
+                    </div>
+                </div>
+                <div class="automation-log" id="automationLog">
+                    <h4>Automation Log</h4>
+                    <div id="logContent" class="log-content">
+                        <p class="log-entry">System ready. Waiting for automation...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="controls">
             <div class="date-range-group">
                 <div class="date-input-group">

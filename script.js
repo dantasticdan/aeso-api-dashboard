@@ -12,6 +12,10 @@ class PoolPriceDashboard {
         this.smpData = [];
         this.refreshInterval = null;
         
+        // Kasa integration
+        this.kasaApiUrl = 'http://localhost:3001/api';
+        this.kasaStatus = null;
+        
         this.initializeElements();
         this.bindEvents();
         this.setDefaultDate();
@@ -19,6 +23,7 @@ class PoolPriceDashboard {
         this.fetchCurrentSMP();
         this.fetchHistoricalSMP();
         this.startAutoRefresh();
+        this.initializeKasaIntegration();
         this.updateStatus('Ready to fetch pool price data');
     }
 
@@ -45,7 +50,16 @@ class PoolPriceDashboard {
             currentSmpPriceMWh: document.getElementById('currentSmpPriceMWh'),
             smpLastUpdated: document.getElementById('smpLastUpdated'),
             autoRefreshStatus: document.getElementById('autoRefreshStatus'),
-            previousSmpData: document.getElementById('previousSmpData')
+            previousSmpData: document.getElementById('previousSmpData'),
+            // Kasa elements
+            toggleSwitchBtn: document.getElementById('toggleSwitchBtn'),
+            runAutomationBtn: document.getElementById('runAutomationBtn'),
+            automationEnabled: document.getElementById('automationEnabled'),
+            priceThreshold: document.getElementById('priceThreshold'),
+            updateThresholdBtn: document.getElementById('updateThresholdBtn'),
+            switchStatusText: document.getElementById('switchStatusText'),
+            statusIndicator: document.getElementById('statusIndicator'),
+            logContent: document.getElementById('logContent')
         };
     }
 
@@ -55,6 +69,12 @@ class PoolPriceDashboard {
         this.elements.sortSelect.addEventListener('change', () => this.sortData());
         this.elements.prevBtn.addEventListener('click', () => this.previousPage());
         this.elements.nextBtn.addEventListener('click', () => this.nextPage());
+        
+        // Kasa events
+        this.elements.toggleSwitchBtn.addEventListener('click', () => this.toggleKasaSwitch());
+        this.elements.runAutomationBtn.addEventListener('click', () => this.runKasaAutomation());
+        this.elements.updateThresholdBtn.addEventListener('click', () => this.updateKasaThreshold());
+        this.elements.automationEnabled.addEventListener('change', () => this.toggleKasaAutomation());
         
         // Allow Enter key to fetch data from date inputs
         this.elements.startDate.addEventListener('keypress', (e) => {
@@ -185,8 +205,8 @@ class PoolPriceDashboard {
         const startDate = this.elements.startDate.value;
         const endDate = this.elements.endDate.value;
         
-        // Build API URL
-        let url = `${this.apiBaseUrl}/price/poolPrice?startDate=${startDate}`;
+        // Build API URL using our backend
+        let url = `${this.kasaApiUrl}/pool-price?startDate=${startDate}`;
         if (endDate) {
             url += `&endDate=${endDate}`;
         }
@@ -200,8 +220,7 @@ class PoolPriceDashboard {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'API-KEY': await this.getApiKey()
+                    'Content-Type': 'application/json'
                 }
             });
 
@@ -223,26 +242,12 @@ class PoolPriceDashboard {
 
             const data = await response.json();
             
-            // Handle AESO API response structure
-            if (data && data.return && data.return['Pool Price Report'] && Array.isArray(data.return['Pool Price Report'])) {
-                this.data = data.return['Pool Price Report'];
-            } else if (data && data['Pool Price Report'] && Array.isArray(data['Pool Price Report'])) {
-                this.data = data['Pool Price Report'];
-            } else if (Array.isArray(data)) {
-                this.data = data;
-            } else if (data && typeof data === 'object') {
-                // Try to find any array property in the response
-                const arrayKeys = Object.keys(data).filter(key => Array.isArray(data[key]));
-                if (arrayKeys.length > 0) {
-                    console.log('Found array keys:', arrayKeys);
-                    this.data = data[arrayKeys[0]];
-                } else {
-                    // If no array found, wrap the object in an array
-                    this.data = [data];
-                }
+            // Handle our backend API response structure
+            if (data && data.success && data.data && Array.isArray(data.data)) {
+                this.data = data.data;
             } else {
                 console.error('Unexpected data format:', data);
-                throw new Error('Invalid data format received from AESO API');
+                throw new Error('Invalid data format received from backend API');
             }
 
             this.filteredData = [...this.data];
@@ -485,7 +490,7 @@ class PoolPriceDashboard {
 
 
     async fetchCurrentSMP() {
-        const url = `${this.smpApiBaseUrl}/price/systemMarginalPrice/current`;
+        const url = `${this.kasaApiUrl}/price`;
         
         try {
             this.elements.refreshSmpBtn.disabled = true;
@@ -495,8 +500,7 @@ class PoolPriceDashboard {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'API-KEY': await this.getApiKey()
+                    'Content-Type': 'application/json'
                 }
             });
 
@@ -506,13 +510,17 @@ class PoolPriceDashboard {
 
             const data = await response.json();
             
-            // Handle SMP API response structure
-            if (data && data.return && data.return['System Marginal Price Report'] && Array.isArray(data.return['System Marginal Price Report'])) {
-                this.smpData = data.return['System Marginal Price Report'];
-            } else if (data && data['System Marginal Price Report'] && Array.isArray(data['System Marginal Price Report'])) {
-                this.smpData = data['System Marginal Price Report'];
+            // Handle our backend API response structure
+            if (data && data.success && data.data) {
+                // Convert our backend format to the expected format
+                this.smpData = [{
+                    begin_datetime_utc: data.data.raw.begin_datetime_utc,
+                    begin_datetime_mpt: data.data.raw.begin_datetime_mpt,
+                    system_marginal_price: data.data.raw.system_marginal_price,
+                    volume: data.data.raw.volume
+                }];
             } else {
-                throw new Error('Invalid SMP data format received from API');
+                throw new Error('Invalid data format received from backend API');
             }
 
             this.updateSMPDisplay();
@@ -577,15 +585,14 @@ class PoolPriceDashboard {
     async fetchHistoricalSMP() {
         // Fetch historical SMP data for the previous values section
         const today = new Date().toISOString().split('T')[0];
-        const url = `${this.smpApiBaseUrl}/price/systemMarginalPrice?startDate=${today}`;
+        const url = `${this.kasaApiUrl}/price?startDate=${today}`;
         
         try {
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'API-KEY': await this.getApiKey()
+                    'Content-Type': 'application/json'
                 }
             });
 
@@ -596,12 +603,11 @@ class PoolPriceDashboard {
 
             const data = await response.json();
             
-            // Handle historical SMP API response structure
+            // Handle our backend API response structure
             let historicalData = [];
-            if (data && data.return && data.return['System Marginal Price Report'] && Array.isArray(data.return['System Marginal Price Report'])) {
-                historicalData = data.return['System Marginal Price Report'];
-            } else if (data && data['System Marginal Price Report'] && Array.isArray(data['System Marginal Price Report'])) {
-                historicalData = data['System Marginal Price Report'];
+            if (data && data.success && data.data) {
+                // For now, just use the current data as historical
+                historicalData = [data.data.raw];
             }
 
             if (historicalData.length > 1) {
@@ -700,6 +706,179 @@ class PoolPriceDashboard {
         } catch (error) {
             console.warn('Could not fetch API key from Netlify function:', error);
             return 'YOUR_API_KEY_HERE';
+        }
+    }
+
+    // Kasa Integration Methods
+    async initializeKasaIntegration() {
+        try {
+            await this.updateKasaStatus();
+            this.logKasaMessage('Kasa integration initialized', 'info');
+        } catch (error) {
+            this.logKasaMessage(`Failed to initialize Kasa integration: ${error.message}`, 'error');
+        }
+    }
+
+    async updateKasaStatus() {
+        try {
+            const response = await fetch(`${this.kasaApiUrl}/status`);
+            const data = await response.json();
+            
+            if (data.success) {
+                this.kasaStatus = data.device;
+                this.updateKasaUI();
+            } else {
+                throw new Error(data.error || 'Failed to get status');
+            }
+        } catch (error) {
+            console.error('Error updating Kasa status:', error);
+            this.elements.switchStatusText.textContent = 'Offline';
+            this.elements.statusIndicator.className = 'status-indicator offline';
+            this.elements.toggleSwitchBtn.disabled = true;
+        }
+    }
+
+    updateKasaUI() {
+        if (this.kasaStatus) {
+            const isOn = this.kasaStatus.isOn;
+            this.elements.switchStatusText.textContent = isOn ? 'Switch ON' : 'Switch OFF';
+            this.elements.statusIndicator.className = `status-indicator ${isOn ? 'online' : 'offline'}`;
+            this.elements.toggleSwitchBtn.disabled = false;
+            this.elements.toggleSwitchBtn.innerHTML = `<i class="fas fa-power-off"></i> Turn ${isOn ? 'OFF' : 'ON'}`;
+        }
+    }
+
+    async toggleKasaSwitch() {
+        try {
+            this.elements.toggleSwitchBtn.disabled = true;
+            this.elements.toggleSwitchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Switching...';
+            
+            const endpoint = this.kasaStatus?.isOn ? 'off' : 'on';
+            const response = await fetch(`${this.kasaApiUrl}/switch/${endpoint}`, {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                await this.updateKasaStatus();
+                this.logKasaMessage(`Switch turned ${endpoint.toUpperCase()}`, 'success');
+            } else {
+                throw new Error(result.message || 'Failed to toggle switch');
+            }
+        } catch (error) {
+            this.logKasaMessage(`Failed to toggle switch: ${error.message}`, 'error');
+        } finally {
+            this.elements.toggleSwitchBtn.disabled = false;
+            this.updateKasaUI();
+        }
+    }
+
+    async runKasaAutomation() {
+        try {
+            this.elements.runAutomationBtn.disabled = true;
+            this.elements.runAutomationBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running...';
+            
+            const response = await fetch(`${this.kasaApiUrl}/automation/run`, {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                const automationResult = result.result;
+                if (automationResult.action && automationResult.action !== 'none') {
+                    this.logKasaMessage(`${automationResult.action.toUpperCase()}: ${automationResult.reason}`, 'success');
+                    await this.updateKasaStatus();
+                } else {
+                    this.logKasaMessage(automationResult.reason, 'info');
+                }
+            } else {
+                throw new Error(result.error || 'Automation failed');
+            }
+        } catch (error) {
+            this.logKasaMessage(`Automation failed: ${error.message}`, 'error');
+        } finally {
+            this.elements.runAutomationBtn.disabled = false;
+            this.elements.runAutomationBtn.innerHTML = '<i class="fas fa-robot"></i> Run Automation';
+        }
+    }
+
+    async updateKasaThreshold() {
+        try {
+            const threshold = parseFloat(this.elements.priceThreshold.value);
+            
+            if (isNaN(threshold)) {
+                throw new Error('Please enter a valid number for threshold');
+            }
+            
+            if (threshold <= 0) {
+                throw new Error('Threshold must be greater than 0');
+            }
+            
+            const response = await fetch(`${this.kasaApiUrl}/automation/config`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    threshold: threshold
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.logKasaMessage(`Threshold updated: ${threshold}¢/kWh (Turn ON when price < ${threshold}¢/kWh)`, 'success');
+            } else {
+                throw new Error(result.error || 'Failed to update threshold');
+            }
+        } catch (error) {
+            this.logKasaMessage(`Failed to update threshold: ${error.message}`, 'error');
+        }
+    }
+
+    async toggleKasaAutomation() {
+        try {
+            const enabled = this.elements.automationEnabled.checked;
+            
+            const response = await fetch(`${this.kasaApiUrl}/automation/config`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    enabled: enabled
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.logKasaMessage(`Automation ${enabled ? 'enabled' : 'disabled'}`, 'info');
+            } else {
+                throw new Error(result.error || 'Failed to toggle automation');
+            }
+        } catch (error) {
+            this.logKasaMessage(`Failed to toggle automation: ${error.message}`, 'error');
+            // Revert checkbox state
+            this.elements.automationEnabled.checked = !this.elements.automationEnabled.checked;
+        }
+    }
+
+    logKasaMessage(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = document.createElement('p');
+        logEntry.className = `log-entry ${type}`;
+        logEntry.textContent = `[${timestamp}] ${message}`;
+        
+        this.elements.logContent.appendChild(logEntry);
+        this.elements.logContent.scrollTop = this.elements.logContent.scrollHeight;
+        
+        // Keep only last 50 entries
+        const entries = this.elements.logContent.querySelectorAll('.log-entry');
+        if (entries.length > 50) {
+            entries[0].remove();
         }
     }
 }
